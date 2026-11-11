@@ -73,6 +73,3 @@ Employee upload
   -> Payment Agent                PayPal Sandbox payout, verified server-side
   -> SQLite + audit trail -> dashboards
 ```
-| `routes/` | Flask blueprints (auth, expenses, approvals, payments, analytics, agents/audit, admin) |
-| `templates/`, `static/` | Bootstrap UI, Chart.js, Lucide icons (vendored under `static/vendor`, so it works offline) |
-| `tests/` | 80+ pytest tests: `python -m pytest tests -q`

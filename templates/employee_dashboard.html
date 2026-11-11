@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% from "_dash_macros.html" import stat_cards, recent_table, budget_bars, queue_card, alert_cards %}
+{% block title %}My dashboard{% endblock %}
+{% block heading %}My dashboard{% endblock %}
+{% block content %}
+{{ stat_cards(stats) }}
+<div class="mb-3"><a class="btn-sp text-decoration-none" href="/expenses/new">Submit a new expense</a></div>
+<div class="row g-3"><div class="col-lg-8">{{ recent_table(recent) }}</div>
+<div class="col-lg-4"><div class="sp-card"><h2>Reimbursement tracking</h2>
+{% for r in reimb %}<div class="d-flex justify-content-between small py-1"><a href="/expenses/{{ r['id'] }}" class="text-decoration-none">#{{ r['id'] }} {{ r['merchant'] }}</a>
+<span class="badge-st st-{{ r['status'] }}">{{ r['status'].replace('_',' ') }}</span></div>
+{% else %}<p class="text-muted small mb-0">No approved expenses yet.</p>{% endfor %}</div></div></div>
+{% endblock %}

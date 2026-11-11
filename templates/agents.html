@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "_ui.html" import badge %}
+{% block title %}AI Intelligence{% endblock %}
+{% block heading %}AI Intelligence{% endblock %}
+{% block content %}
+<div class="small text-muted mb-3">NLP pipeline: <b>{{ nlp.get('model', '?') }}</b> ({{ nlp.get('pipeline', [])|join(' → ') }})
+  {% if nlp.get('fallback') %}<span class="text-danger">· spaCy model missing - run <code>python -m spacy download en_core_web_sm</code></span>{% endif %}
+  · Payment mode: <b>{{ payment_mode.replace('_', ' ') }}</b></div>
+<div class="row g-3 mb-4">
+  {% for a in statuses %}
+  <div class="col-md-6 col-xl-4"><div class="sp-card h-100">
+    <div class="d-flex justify-content-between align-items-start">
+      <div><span class="agent-dot {{ 'err' if a['state'] == 'error' else 'idle' if a['state'] == 'idle' }}"></span><b>{{ a['name'].replace('_', ' ').title() }}</b></div>
+      <span class="small text-muted">{{ a['state'] }}</span></div>
+    <p class="small text-muted my-2">{{ a['description'] }}</p>
+    <div class="d-flex gap-3 small"><span><b>{{ a['runs'] }}</b> runs</span><span><b>{{ a['errors'] }}</b> errors</span>
+      {% if a.get('avg_ms') is not none and a.get('avg_ms') != None %}<span><b>{{ a['avg_ms'] }}</b> ms avg</span>{% endif %}</div>
+    <div class="small text-muted mt-1">Last run: {{ a['last_run'] or 'never' }}</div></div></div>
+  {% endfor %}
+</div>
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="sp-card mb-3"><h2>Recent AI decisions</h2>
+      {% for d in decisions %}<div class="pb-3 mb-3 border-bottom">
+        <div class="d-flex justify-content-between"><a class="fw-semibold text-decoration-none" href="/expenses/{{ d['expense_id'] }}">#{{ d['expense_id'] }} {{ d['merchant'] }} · ${{ '{:,.2f}'.format(d['amount']) }}</a>{{ badge(d['status']) }}</div>
+        <div class="small mt-1"><b>{{ d['decision']['recommendation'].replace('_', ' ') }}</b> · routed to {{ d['decision']['route_to'].replace('_', ' ').title() }}</div>
+        <p class="small text-muted mb-0">{{ d['explanation'] }}</p></div>
+      {% else %}<p class="text-muted mb-0">No analyses yet.</p>{% endfor %}</div>
+    <div class="sp-card"><h2>Execution history</h2>
+      <div class="table-responsive"><table class="sp-table"><thead><tr><th>When</th><th>Agent</th><th>Expense</th><th>Status</th><th>ms</th></tr></thead><tbody>
+      {% for l in logs %}<tr><td class="small">{{ l['created_at'] }}</td><td>{{ l['agent_name'] }}</td>
+        <td>{% if l['expense_id'] %}<a href="/expenses/{{ l['expense_id'] }}">#{{ l['expense_id'] }}</a>{% endif %}</td>
+        <td><span class="agent-dot {{ 'err' if l['status'] == 'ERROR' }}"></span>{{ l['status'] }}{% if l['error'] %}<div class="small text-danger">{{ l['error'] }}</div>{% endif %}</td>
+        <td>{{ l['duration_ms'] if l['duration_ms'] is not none else '' }}</td></tr>{% endfor %}</tbody></table></div></div>
+  </div>
+  <div class="col-lg-5">
+    <div class="sp-card mb-3"><h2>Risk alerts</h2>
+      {% for a in alerts %}<div class="fraud-card {{ a['risk_level'] }} ps-3 mb-3">
+        <a class="fw-semibold text-decoration-none" href="/expenses/{{ a['expense_id'] }}">#{{ a['expense_id'] }} {{ a['merchant'] }}</a>
+        <span class="risk-{{ a['risk_level'] }} small fw-semibold"> {{ a['risk_level'] }} {{ a['risk_score'] }}</span> <span class="small text-muted">· {{ a['status'] }}</span>
+        <div class="small">{{ a['reason'] }}</div><div class="small text-muted">{{ a['recommendation'] }}</div></div>
+      {% else %}<p class="text-muted mb-0">No alerts.</p>{% endfor %}</div>
+    <div class="sp-card"><h2>Policy violations</h2>
+      {% for v in violations %}<div class="small mb-2"><a href="/expenses/{{ v['expense_id'] }}">#{{ v['expense_id'] }} {{ v['merchant'] }}</a> -
+        <b>{{ v['status'] }}</b>: {{ v['explanation'] }}</div>
+      {% else %}<p class="text-muted mb-0">No violations.</p>{% endfor %}</div>
+  </div>
+</div>
+{% endblock %}

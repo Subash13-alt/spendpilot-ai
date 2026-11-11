@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% from "_dash_macros.html" import stat_cards, recent_table, budget_bars, queue_card, alert_cards %}
+{% block title %}Finance dashboard{% endblock %}
+{% block heading %}Finance dashboard{% endblock %}
+{% block content %}
+{{ stat_cards(stats) }}
+{% if payment_mode == 'LOCAL_DEMO' %}<div class="demo-banner mb-3"><b>Local demonstration mode</b> - PayPal Sandbox credentials are not configured; payouts will not move money or mark expenses paid.</div>{% endif %}
+<div class="mb-3 d-flex gap-2"><a class="btn-sp text-decoration-none" href="/approvals">Authorize reimbursements</a>
+<a class="btn-ghost text-decoration-none" href="/payments">Payments{% if to_pay %} ({{ to_pay }} ready to send){% endif %}</a></div>
+<div class="row g-3"><div class="col-lg-7">{{ recent_table(recent) }}</div>
+<div class="col-lg-5">{{ queue_card(pending_queue, 'Awaiting authorization') }}{{ budget_bars(budgets) }}{{ alert_cards(alerts) }}</div></div>
+{% endblock %}

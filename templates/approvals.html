@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "_ui.html" import badge, decision_form %}
+{% block title %}Approvals{% endblock %}
+{% block heading %}{{ 'Manager approvals' if stage == 'MANAGER' else 'Finance authorization' }}{% endblock %}
+{% block content %}
+<div class="demo-banner mb-3">AI recommendations are advice only. Every approval is a human decision and is recorded in the audit trail.</div>
+{% for it in items %}
+<div class="sp-card mb-3 {{ 'fraud-card' if it['status'] == 'FLAGGED' }}">
+  <div class="d-flex flex-wrap justify-content-between gap-2">
+    <div>
+      <a href="/expenses/{{ it['id'] }}" class="fw-semibold fs-5 text-decoration-none">{{ it['merchant'] }}</a>
+      <div class="text-muted small">#{{ it['id'] }} · {{ it['employee'] }} · {{ it['department'] }} · {{ it['category'] }} · {{ it['expense_date'] }}</div>
+    </div>
+    <div class="text-end"><div class="fs-4 fw-bold">{{ it['currency'] }} {{ '{:,.2f}'.format(it['amount']) }}</div>{{ badge(it['status']) }}</div>
+  </div>
+  <div class="row g-3 my-1 small">
+    <div class="col-md-4"><span class="text-muted">AI recommendation</span><br>
+      <b class="{{ 'risk-LOW' if it['decision'].get('recommendation') == 'APPROVE' else 'risk-MEDIUM' if it['decision'].get('recommendation') == 'REVIEW' else 'risk-HIGH' }}">
+        {{ (it['decision'].get('recommendation') or '—').replace('_', ' ') }}</b></div>
+    <div class="col-md-4"><span class="text-muted">Policy</span><br>
+      {% if it['policy'] %}<b>{{ it['policy']['status'] }}</b>{% if it['policy']['excess_amount'] %} (+${{ '{:,.2f}'.format(it['policy']['excess_amount']) }} over){% endif %}{% else %}—{% endif %}</div>
+    <div class="col-md-4"><span class="text-muted">Risk</span><br><b>{{ it['risk'] or 'LOW' }}</b></div>
+  </div>
+  {% if it['decision'].get('flag_reasons') %}<ul class="small text-danger mb-2">{% for r in it['decision']['flag_reasons'] %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
+  {{ decision_form(it['id'], stage, it['status'] == 'FLAGGED', '/approvals') }}
+</div>
+{% else %}<div class="sp-card text-muted">Nothing is waiting for your decision.</div>{% endfor %}
+{% endblock %}

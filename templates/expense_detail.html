@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% from "_ui.html" import badge, risk, reimb_label, decision_form %}
+{% block title %}Expense #{{ e['id'] }}{% endblock %}
+{% block heading %}Expense #{{ e['id'] }} · {{ e['merchant'] }}{% endblock %}
+{% block content %}
+{% set stage_of = {'DRAFT':0,'SUBMITTED':0,'ANALYSING':1,'FLAGGED':2,'PENDING_MANAGER_APPROVAL':2,'MANAGER_APPROVED':3,
+   'PENDING_FINANCE_AUTHORIZATION':3,'FINANCE_AUTHORIZED':4,'PAYMENT_PROCESSING':5,'PAYMENT_FAILED':5,'PAID':6,'REJECTED':-1} %}
+{% set steps = ['Submitted','AI analysis','Manager review','Finance review','Payment authorized','Payment processing','Paid'] %}
+{% set cur = stage_of[e['status']] %}
+{% set pol = analyses.get('policy_agent', {}).get('data') %}
+{% set fr = analyses.get('fraud_agent', {}).get('data') %}
+{% set ex = analyses.get('expense_agent', {}).get('data') %}
+{% set bud = analyses.get('finance_agent', {}).get('data') %}
+{% set ap = analyses.get('approval_agent', {}).get('data') %}
+{% set dec = analyses.get('decision_engine', {}).get('data') %}
+
+<div class="sp-card mb-3">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+    <div><div class="text-muted small">{{ owner['name'] }} · {{ dept['name'] if dept else '—' }} · {{ e['expense_date'] }}</div>
+      <div style="font-size:1.8rem;font-weight:700">{{ e['currency'] }} {{ '{:,.2f}'.format(e['amount']) }}
+        <span class="fs-6 text-muted fw-normal">{{ e['category'] }}</span></div></div>
+    <div class="text-end">{{ badge(e['status']) }}
+      {% if e['receipt_path'] %}<div class="mt-2"><a class="small" target="_blank" href="/expenses/{{ e['id'] }}/receipt">View receipt</a></div>{% endif %}</div>
+  </div>
+  <div class="d-flex flex-wrap gap-2 small">
+    {% for s in steps %}
+      {% set done = cur >= loop.index0 and cur >= 0 %}
+      <span class="badge-st {{ 'st-PAID' if done and (cur > loop.index0 or e['status'] == 'PAID') else 'st-SUBMITTED' if done else '' }}"
+            style="{{ '' if done else 'background:#f1f4f9;color:#8a97ad' }}">{{ loop.index }}. {{ s }}</span>
+    {% endfor %}
+    {% if e['status'] == 'REJECTED' %}<span class="badge-st st-REJECTED">Rejected</span>{% endif %}
+  </div>
+  {% if e['description'] %}<p class="mt-3 mb-0 text-muted">{{ e['description'] }}</p>{% endif %}
+</div>
+
+{# ---- action panel (server re-checks every permission) ---- #}
+{% if g.user['role'] == 'manager' and e['status'] in ('PENDING_MANAGER_APPROVAL','FLAGGED') and e['user_id'] != g.user['id'] %}
+<div class="sp-card mb-3"><h2>Manager decision</h2>{{ decision_form(e['id'], 'MANAGER', e['status'] == 'FLAGGED', '/expenses/' ~ e['id']) }}</div>
+{% elif g.user['role'] == 'finance_admin' and e['status'] == 'PENDING_FINANCE_AUTHORIZATION' %}
+<div class="sp-card mb-3"><h2>Finance authorization</h2>{{ decision_form(e['id'], 'FINANCE', False, '/expenses/' ~ e['id']) }}</div>
+{% elif g.user['role'] == 'finance_admin' and e['status'] in ('FINANCE_AUTHORIZED','PAYMENT_PROCESSING','PAYMENT_FAILED') %}
+<div class="sp-card mb-3"><h2>Payment</h2>
+  {% if orch_mode == 'LOCAL_DEMO' %}<div class="demo-banner mb-2">Demo mode: PayPal credentials are not configured. Sending a payout will <b>not</b> move money and the expense will <b>not</b> be marked paid.</div>{% endif %}
+  <form method="post" class="d-flex gap-2"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input type="hidden" name="next" value="/expenses/{{ e['id'] }}">
+    {% if e['status'] == 'FINANCE_AUTHORIZED' %}<button class="btn btn-sm btn-primary" formaction="/payments/{{ e['id'] }}/send">Send payout</button>{% endif %}
+    {% if e['status'] == 'PAYMENT_PROCESSING' %}<button class="btn btn-sm btn-primary" formaction="/payments/{{ e['id'] }}/refresh">Refresh status from PayPal</button>{% endif %}
+    {% if e['status'] == 'PAYMENT_FAILED' %}<button class="btn btn-sm btn-warning" formaction="/payments/{{ e['id'] }}/retry">Re-authorize retry</button>{% endif %}
+  </form></div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="sp-card mb-3"><h2><i data-lucide="bot" style="width:16px"></i> AI decision explanation</h2>
+      {% if dec %}
+        <p class="mb-2"><b>{{ ap['recommendation_label'] if ap else dec['recommendation'] }}</b>
+          <span class="text-muted small">- advice only; a human decides.</span></p>
+        {% if dec['flag_reasons'] %}<ul class="small">{% for r in dec['flag_reasons'] %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
+        <details><summary class="small text-muted" style="cursor:pointer">Full explanation from each agent</summary>
+          <p class="small mt-2 mb-0">{{ dec['explanation'] }}</p></details>
+      {% else %}<p class="text-muted mb-0">AI analysis has not run yet.</p>{% endif %}
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-6"><div class="sp-card h-100"><h2>Policy compliance</h2>
+        {% if pol %}<div class="fs-5 fw-bold {{ 'risk-HIGH' if pol['status'] in ('VIOLATION','PROHIBITED') else 'risk-LOW' if pol['status']=='COMPLIANT' else 'risk-MEDIUM' }}">{{ pol['status'].replace('_',' ') }}</div>
+          <table class="small w-100 mt-2"><tr><td class="text-muted">Limit</td><td class="text-end">{{ '${:,.2f}'.format(pol['limit']) if pol['limit'] is not none else '—' }}</td></tr>
+            <tr><td class="text-muted">Actual</td><td class="text-end">${{ '{:,.2f}'.format(pol['actual_amount']) }}</td></tr>
+            <tr><td class="text-muted">Excess</td><td class="text-end fw-semibold">${{ '{:,.2f}'.format(pol['excess_amount']) }}</td></tr></table>
+          <p class="small text-muted mt-2 mb-0">{{ pol['explanation'] }}</p>
+        {% else %}<p class="text-muted mb-0">Not analysed.</p>{% endif %}</div></div>
+      <div class="col-md-6"><div class="sp-card h-100"><h2>Fraud risk assessment</h2>
+        {% if fr %}<div style="font-size:1.6rem;font-weight:700" class="risk-{{ fr['risk_level'] }}">{{ fr['risk_level'] }} <span class="fs-6 text-muted">{{ fr['risk_score'] }}/100</span></div>
+          <div class="progress my-2" style="height:6px"><div class="progress-bar bg-{{ 'danger' if fr['risk_level']=='HIGH' else 'warning' if fr['risk_level']=='MEDIUM' else 'success' }}" style="width:{{ fr['risk_score'] }}%"></div></div>
+          <p class="small mb-1">{{ fr['reason'] }}</p><p class="small fw-semibold mb-1">{{ fr['recommendation'] }}</p>
+          <p class="small text-muted mb-0">{{ fr['disclaimer'] }}</p>
+        {% else %}<p class="text-muted mb-0">Not analysed.</p>{% endif %}</div></div>
+    </div>
+
+    {% if ex %}<div class="sp-card mb-3"><h2>Expense intelligence</h2>
+      <div class="small">Category <b>{{ ex['category'] }}</b>{% if ex['category_mismatch'] %} (text suggests <b>{{ ex['suggested_category'] }}</b>){% endif %}</div>
+      <p class="small text-muted mb-0 mt-1">{{ ex['explanation'] }}</p></div>{% endif %}
+    {% if bud and bud.get('budget') %}<div class="sp-card mb-3"><h2>Department budget</h2>
+      <div class="d-flex justify-content-between small"><span>${{ '{:,.0f}'.format(bud['spent']) }} of ${{ '{:,.0f}'.format(bud['budget']) }}</span><b>{{ bud['utilization_pct'] }}%</b></div>
+      <div class="progress my-2" style="height:8px"><div class="progress-bar bg-{{ 'danger' if bud['budget_level']=='EXCEEDED' else 'warning' if bud['budget_level']=='WARNING' else 'success' }}" style="width:{{ [bud['utilization_pct'],100]|min }}%"></div></div>
+      <p class="small text-muted mb-0">{{ bud['explanation'] }}</p></div>{% endif %}
+
+    {% if alerts %}{% for a in alerts %}<div class="sp-card fraud-card {{ a['risk_level'] }} mb-3">
+      <div class="d-flex justify-content-between"><b>Risk alert · {{ a['risk_level'] }} ({{ a['risk_score'] }})</b><span class="small text-muted">{{ a['status'] }}</span></div>
+      <p class="small mb-0 mt-1">{{ a['reason'] }}</p></div>{% endfor %}{% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    <div class="sp-card mb-3"><h2>Approval history</h2>
+      {% if approvals %}<ul class="timeline">{% for a in approvals %}
+        <li><b>{{ a['stage'].title() }} · {{ a['decision'].title() }}</b> by {{ a['approver'] }}<br><span class="text-muted small">{{ a['created_at'] }}{% if a['comment'] %} · “{{ a['comment'] }}”{% endif %}</span></li>{% endfor %}</ul>
+      {% else %}<p class="text-muted small mb-0">No human decisions yet.</p>{% endif %}</div>
+
+    {% if reimb %}<div class="sp-card mb-3"><h2>Reimbursement</h2>
+      <table class="small w-100">
+        <tr><td class="text-muted">Status</td><td class="text-end">{{ reimb_label(reimb['status'], reimb['mode']) }}</td></tr>
+        <tr><td class="text-muted">Mode</td><td class="text-end">{{ reimb['mode'].replace('_', ' ') }}</td></tr>
+        {% if reimb['transaction_ref'] %}<tr><td class="text-muted">PayPal ref</td><td class="text-end">{{ reimb['transaction_ref'] }}</td></tr>{% endif %}
+        {% if g.user['role'] != 'employee' and reimb['sender_batch_id'] %}<tr><td class="text-muted">Batch id</td><td class="text-end">{{ reimb['sender_batch_id'] }}</td></tr>{% endif %}
+      </table>
+      {% if reimb['failure_reason'] %}<p class="small text-danger mt-2 mb-0">{{ reimb['failure_reason'] }}</p>{% endif %}
+      {% if reimb['mode'] == 'LOCAL_DEMO' %}<div class="demo-banner mt-2">Local demonstration only - no money moved.</div>{% endif %}</div>{% endif %}
+
+    <div class="sp-card mb-3"><h2>Audit trail</h2>
+      <ul class="timeline">{% for t in timeline %}
+        <li><b>{{ t['action'].replace('_', ' ').title() }}</b>{% if t['new_status'] %} <span class="text-muted small">→ {{ t['new_status'].replace('_',' ').title() }}</span>{% endif %}<br>
+          <span class="text-muted small">{{ t['created_at'] }} · {{ t['actor'] or t['actor_type'].title() }}</span></li>{% endfor %}</ul></div>
+
+    {% if agent_log %}<div class="sp-card"><h2>Agent execution</h2>
+      <table class="small w-100">{% for l in agent_log %}<tr><td><span class="agent-dot {{ 'err' if l['status']=='ERROR' }}"></span>{{ l['agent_name'] }}</td>
+        <td class="text-end text-muted">{{ l['duration_ms'] if l['duration_ms'] is not none else '' }}{{ ' ms' if l['duration_ms'] is not none }}</td></tr>
+        {% if l['error'] %}<tr><td colspan="2" class="text-danger">{{ l['error'] }}</td></tr>{% endif %}{% endfor %}</table></div>{% endif %}
+  </div>
+</div>
+{% endblock %}

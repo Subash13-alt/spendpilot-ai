@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Budgets{% endblock %}
+{% block heading %}Department budgets · {{ period }}{% endblock %}
+{% block content %}
+<div class="sp-card mb-3 table-responsive"><table class="sp-table">
+  <thead><tr><th>Department</th><th>Budget</th><th>Committed spend</th><th>Remaining</th><th style="width:25%">Utilization</th>{% if can_edit %}<th>Set budget</th>{% endif %}</tr></thead><tbody>
+  {% for r in rows %}<tr><td class="fw-medium">{{ r['department'] }}</td><td>${{ '{:,.2f}'.format(r['budget']) }}</td><td>${{ '{:,.2f}'.format(r['spent']) }}</td>
+    <td class="{{ 'text-danger fw-semibold' if r['remaining'] < 0 }}">${{ '{:,.2f}'.format(r['remaining']) }}</td>
+    <td>{% if r['utilization_pct'] is not none %}<div class="progress" style="height:8px"><div class="progress-bar bg-{{ 'danger' if r['level']=='EXCEEDED' else 'warning' if r['level']=='WARNING' else 'success' }}" style="width:{{ [r['utilization_pct'],100]|min }}%"></div></div>
+      <span class="small">{{ r['utilization_pct'] }}%{% if r['level'] == 'WARNING' %} · <b class="text-warning-emphasis">budget warning</b>{% elif r['level'] == 'EXCEEDED' %} · <b class="text-danger">over budget</b>{% endif %}</span>
+      {% else %}<span class="text-muted small">No budget set</span>{% endif %}</td>
+    {% if can_edit %}<td><form method="post" class="d-flex gap-1"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input type="hidden" name="period" value="{{ period }}">
+      <input type="hidden" name="department_id" value="{{ r['department_id'] }}"><input class="form-control form-control-sm" style="width:110px" name="amount" inputmode="decimal" value="{{ r['budget'] }}">
+      <button class="btn btn-sm btn-outline-primary">Save</button></form></td>{% endif %}</tr>{% endfor %}</tbody></table></div>
+<p class="small text-muted">Committed spend counts every expense that is not draft or rejected, including expenses still awaiting approval.</p>
+{% endblock %}

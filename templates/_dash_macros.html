@@ -1,0 +1,45 @@
+{% macro stat_cards(stats) %}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3"><div class="sp-card sp-stat navy"><div class="label">Total spend</div><div class="value">${{ '{:,.2f}'.format(stats['spend']) }}</div></div></div>
+  <div class="col-6 col-xl-3"><div class="sp-card sp-stat"><div class="label">Expenses</div><div class="value">{{ stats['total'] }}</div></div></div>
+  <div class="col-6 col-xl-3"><div class="sp-card sp-stat"><div class="label">Pending</div><div class="value">{{ stats['pending'] or 0 }}</div></div></div>
+  <div class="col-6 col-xl-3"><div class="sp-card sp-stat"><div class="label">Flagged</div><div class="value">{{ stats['flagged'] or 0 }}</div></div></div>
+</div>
+{% endmacro %}
+
+{% macro recent_table(recent) %}
+<div class="sp-card">
+  <h2>Recent expenses</h2>
+  <table class="sp-table"><thead><tr><th>Merchant</th><th>Category</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for r in recent %}
+    <tr><td><a href="/expenses/{{ r['id'] }}" class="text-decoration-none">{{ r['merchant'] }}</a></td><td>{{ r['category'] }}</td>
+    <td>{{ r['expense_date'] }}</td><td>{{ r['currency'] }} {{ '{:,.2f}'.format(r['amount']) }}</td>
+    <td><span class="badge-st st-{{ r['status'] }}">{{ r['status'].replace('_', ' ') }}</span></td></tr>
+  {% else %}
+    <tr><td colspan="5" class="text-muted">No expenses yet.</td></tr>
+  {% endfor %}
+  </tbody></table>
+</div>
+{% endmacro %}
+
+{% macro budget_bars(budgets) %}
+<div class="sp-card mb-3"><h2>Budget utilization</h2>
+{% for b in budgets if b['budget'] %}
+  <div class="mb-3"><div class="d-flex justify-content-between small"><span>{{ b['department'] }}</span><span><b>{{ b['utilization_pct'] }}%</b> · ${{ '{:,.0f}'.format(b['remaining']) }} left</span></div>
+  <div class="progress" style="height:8px"><div class="progress-bar bg-{{ 'danger' if b['level']=='EXCEEDED' else 'warning' if b['level']=='WARNING' else 'success' }}" style="width:{{ [b['utilization_pct'],100]|min }}%"></div></div>
+  {% if b['level'] == 'WARNING' %}<div class="small text-warning-emphasis mt-1">Budget warning: over 80% used</div>{% elif b['level'] == 'EXCEEDED' %}<div class="small text-danger mt-1">Over budget</div>{% endif %}</div>
+{% else %}<p class="text-muted small mb-0">No budgets configured.</p>{% endfor %}</div>
+{% endmacro %}
+
+{% macro queue_card(items, title='Waiting for a decision') %}
+<div class="sp-card mb-3"><h2>{{ title }}</h2>
+{% for q in items %}<div class="d-flex justify-content-between small py-1"><a href="/expenses/{{ q['id'] }}" class="text-decoration-none">#{{ q['id'] }} {{ q['merchant'] }}</a>
+  <span>${{ '{:,.2f}'.format(q['amount']) }} <span class="badge-st st-{{ q['status'] }}">{{ q['status'].replace('_',' ') }}</span></span></div>
+{% else %}<p class="text-muted small mb-0">Nothing pending.</p>{% endfor %}</div>
+{% endmacro %}
+
+{% macro alert_cards(alerts) %}
+{% for a in alerts %}<div class="sp-card fraud-card {{ a['risk_level'] }} mb-3"><div class="d-flex justify-content-between"><b>Risk alert · {{ a['risk_level'] }} {{ a['risk_score'] }}</b>
+  <a class="small" href="/expenses/{{ a['expense_id'] }}">#{{ a['expense_id'] }}</a></div><div class="small mt-1">{{ a['reason'] }}</div></div>{% endfor %}
+{% endmacro %}

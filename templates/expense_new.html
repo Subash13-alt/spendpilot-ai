@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Submit expense{% endblock %}
+{% block heading %}Submit an expense{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <form class="sp-card" method="post" enctype="multipart/form-data" id="expForm">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <h2>1. Upload a receipt</h2>
+      <p class="text-muted small">PNG, JPG, PDF or TXT, up to 5 MB. AI reads it and pre-fills the form below - always check the values.</p>
+      <input class="form-control mb-3" type="file" name="receipt" id="receipt" accept=".png,.jpg,.jpeg,.pdf,.txt">
+      <details class="mb-3"><summary class="text-muted small" style="cursor:pointer">No file? Paste receipt text instead</summary>
+        <textarea id="pasted" class="form-control mt-2" rows="3" maxlength="5000" placeholder="Hotel Grand Palace. Date: 09/11/2026. Total: $350.00"></textarea>
+        <button type="button" class="btn btn-sm btn-ghost mt-2" id="extractText">Extract from text</button>
+      </details>
+      <h2 class="mt-4">2. Review and correct</h2>
+      <div class="row g-3">
+        <div class="col-md-8"><label class="form-label">Merchant</label>
+          <input class="form-control" name="merchant" id="f_merchant" value="{{ form.get('merchant', '') }}" required maxlength="100"></div>
+        <div class="col-md-4"><label class="form-label">Date</label>
+          <input class="form-control" type="date" name="expense_date" id="f_date" max="{{ today }}" value="{{ form.get('expense_date', '') }}" required></div>
+        <div class="col-md-4"><label class="form-label">Amount</label>
+          <input class="form-control" name="amount" id="f_amount" inputmode="decimal" value="{{ form.get('amount', '') }}" required></div>
+        <div class="col-md-4"><label class="form-label">Currency</label>
+          <select class="form-select" name="currency" id="f_currency">{% for c in currencies %}<option {{ 'selected' if c == form.get('currency', 'USD') }}>{{ c }}</option>{% endfor %}</select></div>
+        <div class="col-md-4"><label class="form-label">Category</label>
+          <select class="form-select" name="category" id="f_category">{% for c in categories %}<option {{ 'selected' if c == form.get('category') }}>{{ c }}</option>{% endfor %}</select></div>
+        <div class="col-12"><label class="form-label">Description (optional)</label>
+          <input class="form-control" name="description" maxlength="300" value="{{ form.get('description', '') }}"></div>
+      </div>
+      <button class="btn-sp mt-4">Submit for AI analysis &amp; approval</button>
+    </form>
+  </div>
+  <div class="col-lg-5">
+    <div class="sp-card" id="aiPanel">
+      <h2>AI extraction</h2>
+      <p class="text-muted small mb-0" id="aiEmpty">Upload a receipt to see what the Expense Intelligence agent finds.</p>
+      <div id="aiResult" class="d-none">
+        <div class="mb-2"><span class="text-muted small">Method</span> <b id="aiMethod"></b></div>
+        <div class="mb-2"><span class="text-muted small">Overall confidence</span>
+          <div class="progress" style="height:8px"><div id="aiConf" class="progress-bar"></div></div></div>
+        <div class="mb-2"><span class="text-muted small">Suggested category</span> <b id="aiCat"></b> <span class="text-muted small" id="aiCatConf"></span></div>
+        <ul id="aiNotes" class="small text-warning-emphasis ps-3 mb-0"></ul>
+      </div>
+      <div class="alert alert-danger mt-3 d-none" id="aiErr"></div>
+    </div>
+    <div class="sp-card mt-3 small text-muted">After submission the Expense, Policy, Fraud, Finance and Approval agents run in sequence.
+      A manager and a finance administrator must both approve before any reimbursement. AI only advises.</div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const $ = id => document.getElementById(id);
+function show(rec) {
+  $('aiEmpty').classList.add('d-none'); $('aiErr').classList.add('d-none'); $('aiResult').classList.remove('d-none');
+  if (rec.merchant) $('f_merchant').value = rec.merchant;
+  if (rec.date) $('f_date').value = rec.date;
+  if (rec.amount != null) $('f_amount').value = rec.amount.toFixed(2);
+  if (rec.currency) $('f_currency').value = rec.currency;
+  if (rec.category) $('f_category').value = rec.category;
+  $('aiMethod').textContent = rec.extraction_method || '-';
+  const pct = Math.round((rec.confidence || 0) * 100);
+  $('aiConf').style.width = pct + '%'; $('aiConf').textContent = pct + '%';
+  $('aiCat').textContent = rec.category; $('aiCatConf').textContent = '(' + Math.round((rec.category_confidence || 0) * 100) + '% match)';
+  $('aiNotes').innerHTML = (rec.notes || []).map(n => '<li>' + escapeHtml(n) + '</li>').join('');
+}
+function fail(msg) { $('aiErr').textContent = msg; $('aiErr').classList.remove('d-none'); }
+$('receipt').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const fd = new FormData(); fd.append('receipt', f);
+  try { show(await api('/api/expenses/extract', { method: 'POST', body: fd })); } catch (err) { fail(err.message); }
+});
+$('extractText').addEventListener('click', async () => {
+  const fd = new FormData(); fd.append('text', $('pasted').value);
+  try { show(await api('/api/expenses/extract', { method: 'POST', body: fd })); } catch (err) { fail(err.message); }
+});
+</script>
+{% endblock %}

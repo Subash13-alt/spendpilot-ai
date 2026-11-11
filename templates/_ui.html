@@ -1,0 +1,22 @@
+{% macro badge(status) %}<span class="badge-st st-{{ status }}">{{ status.replace('_', ' ') }}</span>{% endmacro %}
+
+{% macro risk(level, score=None) %}{% if level %}<span class="fw-semibold risk-{{ level }}">{{ level }}{% if score is not none %} · {{ score }}{% endif %}</span>{% else %}<span class="text-muted">—</span>{% endif %}{% endmacro %}
+
+{% macro money(v, cur='USD') %}{{ cur }} {{ '{:,.2f}'.format(v or 0) }}{% endmacro %}
+
+{% macro reimb_label(status, mode) -%}
+  {%- if not status -%}—
+  {%- elif status == 'DEMO_NOT_PAID' -%}<span class="badge-st st-FLAGGED">DEMO · NOT PAID</span>
+  {%- else -%}<span class="badge-st st-{{ 'PAID' if status == 'PAID' else 'REJECTED' if status == 'FAILED' else 'PENDING_MANAGER_APPROVAL' }}">{{ status }}</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro decision_form(expense_id, stage, flagged=False, next_url='') %}
+<form method="post" action="/approvals/{{ expense_id }}/decide" class="d-flex flex-wrap gap-2 align-items-start">
+  <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+  <input type="hidden" name="next" value="{{ next_url }}">
+  <input class="form-control form-control-sm" style="max-width:280px" name="comment" maxlength="500"
+         placeholder="{{ 'Comment (required for flagged items)' if flagged else 'Comment (optional)' }}" {{ 'required' if flagged }}>
+  <button name="decision" value="APPROVED" class="btn btn-sm btn-success">{{ 'Approve' if stage == 'MANAGER' else 'Authorize payment' }}</button>
+  <button name="decision" value="REJECTED" class="btn btn-sm btn-outline-danger">Reject</button>
+</form>
+{% endmacro %}

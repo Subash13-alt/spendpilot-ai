@@ -1,0 +1,11 @@
+HOTEL GRAND PALACE
+12 Marine Drive, Mumbai
+Merchant: Hotel Grand Palace
+Date: 09/11/2026
+Guest: Alice Johnson
+Room 412 - Deluxe Suite - 2 nights
+Room charges      $318.18
+Tax (10%)          $31.82
+Total: $350.00
+Paid by Visa ending 4242
+Thank you for your stay

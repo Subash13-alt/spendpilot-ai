@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% from "_dash_macros.html" import stat_cards, recent_table, budget_bars, queue_card, alert_cards %}
+{% block title %}Department dashboard{% endblock %}
+{% block heading %}Department dashboard{% endblock %}
+{% block content %}
+{{ stat_cards(stats) }}
+<div class="mb-3"><a class="btn-sp text-decoration-none" href="/approvals">Review pending approvals</a></div>
+<div class="row g-3"><div class="col-lg-7">{{ recent_table(recent) }}</div>
+<div class="col-lg-5">{{ queue_card(pending_queue) }}{{ budget_bars(budgets) }}{{ alert_cards(alerts) }}</div></div>
+{% endblock %}

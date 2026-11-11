@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Audit log{% endblock %}
+{% block heading %}Audit log{% endblock %}
+{% block content %}
+<form method="get" class="d-flex flex-wrap gap-2 mb-3">
+  <select name="action" class="form-select form-select-sm" style="max-width:260px" onchange="this.form.submit()">
+    <option value="">All actions</option>{% for a in actions %}<option {{ 'selected' if a == action }}>{{ a }}</option>{% endfor %}</select>
+  <input class="form-control form-control-sm" style="max-width:140px" type="number" name="expense_id" placeholder="Expense #" value="{{ expense_id or '' }}">
+  <button class="btn btn-sm btn-ghost">Filter</button><span class="small text-muted align-self-center">{{ total }} entries</span>
+</form>
+<div class="sp-card table-responsive"><table class="sp-table">
+  <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Expense</th><th>Status change</th><th>Details</th></tr></thead><tbody>
+  {% for r in rows %}<tr><td class="small">{{ r['created_at'] }}</td><td>{{ r['actor'] or r['actor_type'].title() }}</td>
+    <td>{{ r['action'] }}</td><td>{% if r['expense_id'] %}<a href="/expenses/{{ r['expense_id'] }}">#{{ r['expense_id'] }}</a>{% endif %}</td>
+    <td class="small">{% if r['new_status'] %}{{ r['old_status'] or '—' }} → {{ r['new_status'] }}{% endif %}</td>
+    <td class="small text-muted" style="max-width:320px;word-break:break-word">{{ r['details'] or '' }}</td></tr>
+  {% else %}<tr><td colspan="6" class="text-muted">No entries.</td></tr>{% endfor %}</tbody></table></div>
+<div class="d-flex justify-content-between mt-3 small">
+  <span>Page {{ page }} of {{ pages }}</span>
+  <span>{% if page > 1 %}<a href="?page={{ page - 1 }}&action={{ action|urlencode }}&expense_id={{ expense_id or '' }}">← Newer</a>{% endif %}
+    {% if page < pages %} <a href="?page={{ page + 1 }}&action={{ action|urlencode }}&expense_id={{ expense_id or '' }}">Older →</a>{% endif %}</span>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_ui.html" import badge, risk, reimb_label %}
+{% block title %}Expenses{% endblock %}
+{% block heading %}{{ 'My expenses' if g.user['role'] == 'employee' else 'Expenses' }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap gap-2 justify-content-between mb-3">
+  <form method="get" class="d-flex gap-2">
+    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+      <option value="">All statuses</option>
+      {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if s == current }}>{{ s.replace('_', ' ').title() }}</option>{% endfor %}
+    </select>
+  </form>
+  {% if g.user['role'] == 'employee' %}<a class="btn-sp text-decoration-none" href="/expenses/new">+ New expense</a>{% endif %}
+</div>
+<div class="sp-card table-responsive">
+  <table class="sp-table">
+    <thead><tr><th>#</th><th>Merchant</th>{% if g.user['role'] != 'employee' %}<th>Employee</th><th>Dept</th>{% endif %}
+      <th>Category</th><th>Date</th><th>Amount</th><th>Risk</th><th>Status</th><th>Reimbursement</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr><td>{{ r['id'] }}</td>
+        <td><a class="text-decoration-none fw-medium" href="/expenses/{{ r['id'] }}">{{ r['merchant'] }}</a></td>
+        {% if g.user['role'] != 'employee' %}<td>{{ r['employee'] }}</td><td>{{ r['department'] or '—' }}</td>{% endif %}
+        <td>{{ r['category'] }}</td><td>{{ r['expense_date'] }}</td>
+        <td>{{ r['currency'] }} {{ '{:,.2f}'.format(r['amount']) }}</td>
+        <td>{{ risk(r['risk']) }}</td><td>{{ badge(r['status']) }}</td>
+        <td>{{ reimb_label(r['reimbursement_status'], r['reimbursement_mode']) }}</td></tr>
+    {% else %}<tr><td colspan="10" class="text-muted">No expenses found.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+venv/
+spendpilot.db
+uploads/*
+uploads/.gitkeep
+.pytest_cache/

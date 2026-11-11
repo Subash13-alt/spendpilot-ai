@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Error {{ code }}{% endblock %}
+{% block heading %}Error {{ code }}{% endblock %}
+{% block content %}
+<div class="sp-card"><p class="mb-3">{{ message }}</p><a class="btn-sp text-decoration-none" href="/dashboard">Back to dashboard</a></div>
+{% endblock %}
+{% block public %}
+<div style="min-height:100vh;display:grid;place-items:center"><div class="sp-card text-center">
+  <h2>Error {{ code }}</h2><p>{{ message }}</p><a href="/login">Sign in</a></div></div>
+{% endblock %}

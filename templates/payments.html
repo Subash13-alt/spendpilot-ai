@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "_ui.html" import badge, reimb_label %}
+{% block title %}Payments{% endblock %}
+{% block heading %}Payments &amp; reimbursements{% endblock %}
+{% block content %}
+{% if mode == 'LOCAL_DEMO' %}
+<div class="demo-banner mb-3"><b>Local demonstration mode.</b> PayPal Sandbox credentials are not configured
+  (<code>PAYPAL_CLIENT_ID</code> / <code>PAYPAL_CLIENT_SECRET</code>). Payout actions record the preparation but move no money
+  and never mark an expense as paid.</div>
+{% else %}
+<div class="alert alert-info">Connected to <b>PayPal Sandbox</b>. An expense is marked paid only after PayPal's API reports the payout item as SUCCESS.</div>
+{% endif %}
+<div class="sp-card table-responsive">
+  <table class="sp-table">
+    <thead><tr><th>#</th><th>Employee</th><th>Amount</th><th>Expense</th><th>Reimbursement</th><th>PayPal ref</th><th>Updated</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr><td><a href="/expenses/{{ r['id'] }}">{{ r['id'] }}</a></td>
+        <td>{{ r['employee'] }}<div class="small text-muted">{{ r['paypal_email'] or 'no PayPal email' }}</div></td>
+        <td>{{ r['currency'] }} {{ '{:,.2f}'.format(r['amount']) }}</td><td>{{ badge(r['expense_status']) }}</td>
+        <td>{{ reimb_label(r['reimb_status'], r['mode']) }}{% if r['failure_reason'] %}<div class="small text-danger">{{ r['failure_reason'] }}</div>{% endif %}</td>
+        <td class="small">{{ r['transaction_ref'] or r['payout_batch_id'] or r['sender_batch_id'] or '—' }}</td>
+        <td class="small text-muted">{{ r['updated_at'] or '' }}</td>
+        <td>{% if g.user['role'] == 'finance_admin' %}
+          <form method="post" class="d-flex gap-1"><input type="hidden" name="_csrf" value="{{ csrf_token }}">
+            {% if r['expense_status'] == 'FINANCE_AUTHORIZED' %}<button class="btn btn-sm btn-primary" formaction="/payments/{{ r['id'] }}/send">Send payout</button>{% endif %}
+            {% if r['expense_status'] == 'PAYMENT_PROCESSING' %}<button class="btn btn-sm btn-outline-primary" formaction="/payments/{{ r['id'] }}/refresh">Refresh</button>{% endif %}
+            {% if r['expense_status'] == 'PAYMENT_FAILED' %}<button class="btn btn-sm btn-warning" formaction="/payments/{{ r['id'] }}/retry">Retry</button>{% endif %}
+          </form>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="8" class="text-muted">No authorised payments yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

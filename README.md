@@ -73,37 +73,6 @@ Employee upload
   -> Payment Agent                PayPal Sandbox payout, verified server-side
   -> SQLite + audit trail -> dashboards
 ```
-
-| Folder | Purpose |
-|---|---|
-| `database/` | sqlite3 connection + SAVEPOINT transactions, schema (12 tables, FKs, indexes), seed data |
-| `agents/` | the six agents, `base.py` (shared `WorkflowState`), `orchestrator.py` |
-| `intelligence/` | spaCy engine, entity extractor, classifier, policy engine, anomaly detector, forecasting |
-| `services/` | receipt validation/OCR, approval rules, PayPal client, audit + legal status transitions, row scoping |
 | `routes/` | Flask blueprints (auth, expenses, approvals, payments, analytics, agents/audit, admin) |
 | `templates/`, `static/` | Bootstrap UI, Chart.js, Lucide icons (vendored under `static/vendor`, so it works offline) |
-| `tests/` | 80+ pytest tests: `python -m pytest tests -q` |
-
-## Safety rules enforced in code (and tested)
-
-- **No AI authorisation.** `MANAGER_APPROVED` and `FINANCE_AUTHORIZED` can only be reached by a human actor; `audit_service.transition` rejects agents.
-- **Legal transitions only**, each written to `audit_logs`. `PAID` is set only when PayPal's API returns the payout item as `SUCCESS`.
-- **Agent failure is safe**: it routes the expense to `FLAGGED` for human review, never to approval.
-- **Separation of duties**: nobody approves their own expense; managers act only on their department; only finance authorises/pays.
-- **Organisation isolation** and role scoping on every query (`services/scope.py`); roles enforced by backend decorators, not just hidden menu items.
-- **Natural-language queries never run user SQL**: spaCy maps a question to a fixed set of parameterised queries.
-- Passwords hashed (werkzeug scrypt), CSRF tokens on every POST, login lockout, uploads validated by extension, size and magic bytes and stored under random names, output escaped.
-- Fraud output is a **risk indicator** with a disclaimer; it never says anyone is guilty.
-
-## Honest limitations
-
-- **PayPal:** the Sandbox integration follows PayPal's Payouts API (OAuth token, create payout, server-side status lookup) and is unit-tested
-  against a scripted fake HTTP session. It was **not run against live PayPal servers** in the build environment, which had no credentials.
-  Try it with your own sandbox keys. Sandbox payout items often stay `PENDING`/`UNCLAIMED` for a while; use *Refresh status*.
-  Payouts must be enabled for your sandbox business account, and the employee's PayPal email must be a sandbox account.
-- **Demo mode:** without credentials, *Send payout* records a clearly labelled `DEMO_NOT_PAID` reimbursement. No money moves and the expense is never marked paid.
-- **Seeded history:** historical baseline expenses are inserted as `MANAGER_APPROVED` (audit action `SEEDED_DEMO_DATA`), never `PAID`.
-- **Numeric dates** such as `09/11/2026` are read as DD/MM/YYYY (matching the specification example) and the employee is asked to confirm.
-- **Currencies:** policy limits are in USD. Other currencies are routed to manager review because no exchange-rate source is configured.
-- **Dev server:** `python app.py` uses Flask's built-in server, fine for a demo. For production use a WSGI server (e.g. `waitress`) behind HTTPS and set `SPENDPILOT_SECRET`.
-- The login lockout counter is in process memory and resets on restart.
+| `tests/` | 80+ pytest tests: `python -m pytest tests -q`
